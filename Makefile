@@ -1,5 +1,5 @@
 CC=g++
-CFLAGS=-ansi -pedantic -Wall -Wextra -O3
+CFLAGS=-std=c++11 -pedantic -Wall -Wextra -O3
 
 all : switchboard.bin
 
