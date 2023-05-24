@@ -9,9 +9,21 @@
 
 #include "lodepng.h"
 
+#include <string>
 #include <iostream>
 #include <cstdio>
 
+struct job_t {
+  std::string name;
+  std::vector<int> nodeids;
+};
+
+struct machine_t {
+  // the machine name to search for
+  std::string name;
+  // the node hierarchy
+  // a mapping function from node name to 0-indexed id
+};
 
 // data for frontier
 int const node_levels = 2;
@@ -36,15 +48,16 @@ int main(int argc, char *argv[])
   const char* out_file = "out.png";
 
   // load in the test file
-  std::vector<unsigned char> in_image; //the raw pixels
-  unsigned int in_width, in_height;
-  unsigned int error = lodepng::decode(in_image, in_width, in_height, in_file);
+  //std::vector<unsigned char> in_image; //the raw pixels
+  //unsigned int in_width, in_height;
+  unsigned int error;
+  //unsigned int error = lodepng::decode(in_image, in_width, in_height, in_file);
   //if there's an error, display it
-  if (error) std::cout << "decoder error " << error << ": " << lodepng_error_text(error) << std::endl;
+  //if (error) std::cout << "decoder error " << error << ": " << lodepng_error_text(error) << std::endl;
 
   // colors
   unsigned char bdrcolor[4] = {192, 192, 192, 255};
-  unsigned char usecolor[4] = {32, 32, 96, 255};
+  unsigned char usecolor[4] = {32, 32, 160, 255};
 
   // create new image data arrays
   int boxszx[node_levels+1];
@@ -96,74 +109,138 @@ int main(int argc, char *argv[])
 
   // march through all nodes and draw their boxes
   if (boxbdr[0] > 0) {
-  // can add openmp here if necessary
-  for (int cnt = 0; cnt < nnodes; cnt++) {
-    const int group = cnt / node_hierarchy[0];
-    const int igroup = group % num_per_row[1];
-    const int jgroup = group / num_per_row[1];
-    const int node = cnt - group*node_hierarchy[0];
-    const int inode = node % num_per_row[0];
-    const int jnode = node / num_per_row[0];
+    // can add openmp here if necessary
+    for (int cnt = 0; cnt < nnodes; cnt++) {
+      const int group = cnt / node_hierarchy[0];
+      const int igroup = group % num_per_row[1];
+      const int jgroup = group / num_per_row[1];
+      const int node = cnt - group*node_hierarchy[0];
+      const int inode = node % num_per_row[0];
+      const int jnode = node / num_per_row[0];
 
-    //std::cout << "Node " << cnt << " is " << node << " in group " << group << "\n";
-    //printf("Node %d is %d (%d x %d) in group %d (%d x %d)\n", cnt, node, inode, jnode, group, igroup, jgroup);
+      //std::cout << "Node " << cnt << " is " << node << " in group " << group << "\n";
+      //printf("Node %d is %d (%d x %d) in group %d (%d x %d)\n", cnt, node, inode, jnode, group, igroup, jgroup);
 
-    // pixel index of top left corner
-    const int idx = (boxgap[2]/2 + jgroup*boxhgt[1] + boxgap[1]/2 + jnode*boxhgt[0] + boxgap[0]/2)*boxwid[2]
-                   + boxgap[2]/2 + igroup*boxwid[1] + boxgap[1]/2 + inode*boxwid[0] + boxgap[0]/2;
+      // pixel index of top left corner
+      const int idx = (boxgap[2]/2 + jgroup*boxhgt[1] + boxgap[1]/2 + jnode*boxhgt[0] + boxgap[0]/2)*boxwid[2]
+                     + boxgap[2]/2 + igroup*boxwid[1] + boxgap[1]/2 + inode*boxwid[0] + boxgap[0]/2;
 
-    // draw the top and bottom bars
-    for (int y=0; y<boxbdr[0]; ++y) {
-      const int py = idx + y*boxwid[2];
-      for (int x=0; x<(boxszx[0]+2*boxbdr[0]); ++x) {
-        const int px = py + x;
-        for (int c=0; c<4; ++c) out_image[4*px+c] = bdrcolor[c];
+      // draw the top and bottom bars
+      for (int y=0; y<boxbdr[0]; ++y) {
+        const int py = idx + y*boxwid[2];
+        for (int x=0; x<(boxszx[0]+2*boxbdr[0]); ++x) {
+          const int px = py + x;
+          for (int c=0; c<4; ++c) out_image[4*px+c] = bdrcolor[c];
+        }
+      }
+      for (int y=0; y<boxbdr[0]; ++y) {
+        const int py = idx + (y+boxbdr[0]+boxszy[0])*boxwid[2];
+        for (int x=0; x<(boxszx[0]+2*boxbdr[0]); ++x) {
+          const int px = py + x;
+          for (int c=0; c<4; ++c) out_image[4*px+c] = bdrcolor[c];
+        }
+      }
+
+      // draw the sides
+      for (int y=0; y<boxszy[0]; ++y) {
+        const int py = idx + (y+boxbdr[0])*boxwid[2];
+        for (int x=0; x<boxbdr[0]; ++x) {
+          const int px = py + x;
+          for (int c=0; c<4; ++c) out_image[4*px+c] = bdrcolor[c];
+        }
+        for (int x=0; x<boxbdr[0]; ++x) {
+          const int px = py + boxbdr[0] + boxszx[0] + x;
+          for (int c=0; c<4; ++c) out_image[4*px+c] = bdrcolor[c];
+        }
       }
     }
-    for (int y=0; y<boxbdr[0]; ++y) {
-      const int py = idx + (y+boxbdr[0]+boxszy[0])*boxwid[2];
-      for (int x=0; x<(boxszx[0]+2*boxbdr[0]); ++x) {
-        const int px = py + x;
-        for (int c=0; c<4; ++c) out_image[4*px+c] = bdrcolor[c];
-      }
-    }
-
-    // draw the sides
-    for (int y=0; y<boxszy[0]; ++y) {
-      const int py = idx + (y+boxbdr[0])*boxwid[2];
-      for (int x=0; x<boxbdr[0]; ++x) {
-        const int px = py + x;
-        for (int c=0; c<4; ++c) out_image[4*px+c] = bdrcolor[c];
-      }
-      for (int x=0; x<boxbdr[0]; ++x) {
-        const int px = py + boxbdr[0] + boxszx[0] + x;
-        for (int c=0; c<4; ++c) out_image[4*px+c] = bdrcolor[c];
-      }
-    }
-
-    //size_t src_addr = 4*in_width*y + 4*x;
-    // now use bins
-    //float angle = (hue_bins*in_hsv[src_addr+0]/255)/(float)hue_bins * 6.28318531;
-    // idea: consider scaling the displacement by the value or saturation
-    //unsigned int destx = x + band + hue_displace * cos(angle);
-    //unsigned int desty = y + band + hue_displace * sin(angle);
-    //size_t dest_addr = 4*out_width*desty + 4*destx;
-    // need to be able to splat this smoothly, but need blending to do that
-    // need to understand how to do blending to make this work
-    //out_image[dest_addr + 0] = in_image[src_addr + 0];
-    //out_image[dest_addr + 1] = in_image[src_addr + 1];
-    //out_image[dest_addr + 2] = in_image[src_addr + 2];
-    //out_image[dest_addr + 3] = in_image[src_addr + 3];
-  }
   }
 
   // march through all groups and draw their borders
   if (boxbdr[1] > 0) {
   }
 
-  // now march through all participating nodes and color their boxes
-  //if (numactive > 0) {
-  //}
+  // march through all higher level groups and draw their borders
+  if (boxbdr[2] > 0) {
+  }
+
+  // read the node list file into a single large string
+  // node list can come from a copy-paste, or the output from "squeue -t running"
+  // ideally can we do "squeue -t running | switchboard frontier > image.png"
+  //std::string nodelist = "other stuff frontier00100";
+  std::string nodelist = "frontier[00100-00127]";
+  //std::string nodelist = "frontier[00100,00127]";
+  std::string machname = "frontier";
+
+  // repeatedly look for the keyword in the string and generate jobs
+  std::vector<job_t> jobs;
+
+  size_t pos = 0;
+  while ((pos = nodelist.find(machname, pos)) != std::string::npos) {
+    std::cout << "found substring at position " << pos << std::endl;
+    // advance past the substring
+    pos += machname.length();
+    //std::cout << ", next char is (" << nodelist.at(pos) << ")" << std::endl;
+    // advance only if next character is a [
+    if (nodelist.at(pos) == '[') ++pos;
+    //std::cout << ", next char is (" << nodelist.at(pos) << ")" << std::endl;
+
+    // start a potential new job
+    job_t newjob;
+    newjob.name = "job";
+
+    // check first character for digit, otherwise keep looking
+    if (std::isdigit(nodelist.at(pos))) {
+      // read numbers 0..9 and build the nodeid
+      int nodeid = 0;
+      while (std::isdigit(nodelist.at(pos))) {
+        nodeid = nodeid*10 + (nodelist.at(pos) - '0');
+        ++pos;
+        if (pos == nodelist.size()) break;
+        //std::cout << ", next char is (" << nodelist.at(pos) << ")" << std::endl;
+      }
+
+      // add this node to the list
+      std::cout << "  adding nodeid (" << nodeid << ")" << std::endl;
+      newjob.nodeids.push_back(nodeid);
+    }
+
+    // check for a comma or a dash or something else
+    jobs.push_back(newjob);
+  }
+
+  // sort jobs from long to short
+
+  // march through active jobs and draw them
+  for (auto job : jobs) {
+
+    // now march through all participating nodes and color their boxes
+    for (auto nodeid : job.nodeids) {
+
+      // convert node name/number to 0-index
+      const int nodeidx = nodeid;
+
+      const int group = nodeidx / node_hierarchy[0];
+      const int igroup = group % num_per_row[1];
+      const int jgroup = group / num_per_row[1];
+      const int node = nodeidx - group*node_hierarchy[0];
+      const int inode = node % num_per_row[0];
+      const int jnode = node / num_per_row[0];
+
+      // pixel index of top left corner
+      const int idx = (boxgap[2]/2 + jgroup*boxhgt[1] + boxgap[1]/2 + jnode*boxhgt[0] + boxgap[0]/2 + boxbdr[0])*boxwid[2]
+                     + boxgap[2]/2 + igroup*boxwid[1] + boxgap[1]/2 + inode*boxwid[0] + boxgap[0]/2 + boxbdr[0];
+
+      // draw the block of color
+      for (int y=0; y<boxszy[0]; ++y) {
+        const int py = idx + y*boxwid[2];
+        for (int x=0; x<boxszx[0]; ++x) {
+          const int px = py + x;
+          for (int c=0; c<4; ++c) out_image[4*px+c] = usecolor[c];
+        }
+      }
+    }
+  }
 
   // output to a new png
   error = lodepng::encode(out_file, out_image, out_width, out_height);
