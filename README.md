@@ -7,7 +7,7 @@ Render a visual representation of the load on a supercomputer
 You should be able to build and run the code with:
 
 	make
-	./switchboard nodelist1
+	./switchboard nodelist8192
 
 ## To do
 * Create a system to generate a never-ending list of colors (done), use the ryb system (not yet), ensure each additional color is far away from all others (done)
