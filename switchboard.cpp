@@ -33,7 +33,7 @@ struct machine_t {
 std::string machname = "frontier";
 int const node_levels = 2;
 const int node_hierarchy[node_levels] = {128, 74};
-const int num_per_row[node_levels] = {8, 19};
+const int num_per_row[node_levels] = {8, 15};
 // map the name of the machine to a 0-indexed, continuous index
 int map_node_name(const int _n) {
   if (_n <= 9088) return _n-1;
