@@ -9,9 +9,13 @@
 
 #include "lodepng.h"
 
+#include <vector>
 #include <string>
+#include <fstream>
 #include <iostream>
 #include <cstdio>
+#include <cassert>
+#include <iterator>
 
 struct job_t {
   std::string name;
@@ -26,12 +30,15 @@ struct machine_t {
 };
 
 // data for frontier
+std::string machname = "frontier";
 int const node_levels = 2;
 const int node_hierarchy[node_levels] = {128, 74};
 const int num_per_row[node_levels] = {8, 19};
 // map the name of the machine to a 0-indexed, continuous index
 int map_node_name(const int _n) {
-  return _n-1;
+  if (_n <= 9088) return _n-1;
+  else if (_n >= 10113 and _n <= 10496) return _n-1025;
+  else return -1;
 }
 
 // how many rows are needed?
@@ -47,13 +54,15 @@ int main(int argc, char *argv[])
   const char* in_file = argc > 1 ? argv[1] : "nodelist";
   const char* out_file = "out.png";
 
+  // read the node list file into a single large string
+  // node list can come from a copy-paste, or the output from "squeue -t running"
+  // ideally can we do "squeue -t running | switchboard frontier > image.png"
+
   // load in the test file
-  //std::vector<unsigned char> in_image; //the raw pixels
-  //unsigned int in_width, in_height;
-  unsigned int error;
-  //unsigned int error = lodepng::decode(in_image, in_width, in_height, in_file);
-  //if there's an error, display it
-  //if (error) std::cout << "decoder error " << error << ": " << lodepng_error_text(error) << std::endl;
+  std::ifstream ifs(in_file);
+  assert (ifs.is_open() && "Could not open given node list file");
+  std::string nodelist(std::istreambuf_iterator<char>{ifs}, {});
+  ifs.close();
 
   // colors
   unsigned char bdrcolor[4] = {192, 192, 192, 255};
@@ -164,16 +173,7 @@ int main(int argc, char *argv[])
   if (boxbdr[2] > 0) {
   }
 
-  // read the node list file into a single large string
-  // node list can come from a copy-paste, or the output from "squeue -t running"
-  // ideally can we do "squeue -t running | switchboard frontier > image.png"
-  //std::string nodelist = "other stuff frontier00100";
-  //std::string nodelist = "frontier[00101-00128]";
-  //std::string nodelist = "frontier[00101,00128]";
-  std::string nodelist = "try me frontier[00101,00128,00257-00384]";
-  std::string machname = "frontier";
-
-  // repeatedly look for the keyword in the string and generate jobs
+  // repeatedly look for the keyword in the nodelist string and generate jobs
   std::vector<job_t> jobs;
 
   std::cout << "Parsing nodelist..." << std::endl;
@@ -244,6 +244,9 @@ int main(int argc, char *argv[])
         //std::cout << "  next char is bracket, we're done with this entry" << std::endl;
         keep_going = false;
         ++pos;
+
+      } else {
+        keep_going = false;
       }
     }
 
@@ -260,8 +263,10 @@ int main(int argc, char *argv[])
     // now march through all participating nodes and color their boxes
     for (auto nodeid : job.nodeids) {
 
-      // convert node name/number to 0-index
+      // convert node name/number to 0-index (already done!)
       const int nodeidx = nodeid;
+
+      if (nodeidx < 0) continue;
 
       const int group = nodeidx / node_hierarchy[0];
       const int igroup = group % num_per_row[1];
@@ -286,7 +291,7 @@ int main(int argc, char *argv[])
   }
 
   // output to a new png
-  error = lodepng::encode(out_file, out_image, out_width, out_height);
+  unsigned int error = lodepng::encode(out_file, out_image, out_width, out_height);
   //if there's an error, display it
   if (error) std::cout << "encoder error " << error << ": "<< lodepng_error_text(error) << std::endl;
 }
