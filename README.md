@@ -1,6 +1,8 @@
 # switchboard
 Render a visual representation of the load on a supercomputer
 
+![sample](out.png?raw=true "Example of 8192-node job on Frontier")
+
 ## Build and run
 You should be able to build and run the code with:
 
