@@ -7,6 +7,8 @@
 // (c)2023 Mark J Stock <markjstock@gmail.com>
 //
 
+#include "ryb_autocolor.h"
+
 #include "lodepng.h"
 
 #include <vector>
@@ -64,10 +66,6 @@ int main(int argc, char *argv[])
   std::string nodelist(std::istreambuf_iterator<char>{ifs}, {});
   ifs.close();
 
-  // colors
-  unsigned char bdrcolor[4] = {192, 192, 192, 255};
-  unsigned char usecolor[4] = {32, 32, 160, 255};
-
   // create new image data arrays
   int boxszx[node_levels+1];
   int boxszy[node_levels+1];
@@ -101,20 +99,24 @@ int main(int argc, char *argv[])
   unsigned int out_height = boxhgt[2];
   printf("Will create %d x %d image\n", out_width, out_height);
 
+  unsigned char bgcolor[4] = {255, 255, 255, 255};
+
   std::vector<unsigned char> out_image;
   out_image.resize(out_width * out_height * 4);
   // fill with solid white
   for (unsigned int i = 0; i < out_width*out_height; i++) {
-    out_image[4*i+0] = 255;
-    out_image[4*i+1] = 255;
-    out_image[4*i+2] = 255;
-    out_image[4*i+3] = 255;
+    out_image[4*i+0] = bgcolor[0];
+    out_image[4*i+1] = bgcolor[1];
+    out_image[4*i+2] = bgcolor[2];
+    out_image[4*i+3] = bgcolor[3];
     //out_image[4*i+3] = 0;
   }
 
   int nnodes = 1;
   for (int i=0; i<node_levels; ++i) nnodes *= node_hierarchy[i];
   std::cout << "Drawing outlines for " << nnodes << " nodes..." << std::endl;
+
+  unsigned char bdrcolor[4] = {192, 192, 192, 255};
 
   // march through all nodes and draw their boxes
   if (boxbdr[0] > 0) {
@@ -260,6 +262,10 @@ int main(int argc, char *argv[])
   std::cout << "Drawing active nodes..." << std::endl;
   for (auto job : jobs) {
 
+    // get a color for this job
+    unsigned char color[4];
+    (void) get_next_color(color);
+
     // now march through all participating nodes and color their boxes
     for (auto nodeid : job.nodeids) {
 
@@ -284,7 +290,7 @@ int main(int argc, char *argv[])
         const int py = idx + y*boxwid[2];
         for (int x=0; x<boxszx[0]; ++x) {
           const int px = py + x;
-          for (int c=0; c<4; ++c) out_image[4*px+c] = usecolor[c];
+          for (int c=0; c<4; ++c) out_image[4*px+c] = color[c];
         }
       }
     }
