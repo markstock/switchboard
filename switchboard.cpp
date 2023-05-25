@@ -29,8 +29,8 @@ struct machine_t {
 int const node_levels = 2;
 const int node_hierarchy[node_levels] = {128, 74};
 const int num_per_row[node_levels] = {8, 19};
-// and some sort of mapping of node id to these groups?
-int map_frontier(const int _n) {
+// map the name of the machine to a 0-indexed, continuous index
+int map_node_name(const int _n) {
   return _n-1;
 }
 
@@ -168,16 +168,19 @@ int main(int argc, char *argv[])
   // node list can come from a copy-paste, or the output from "squeue -t running"
   // ideally can we do "squeue -t running | switchboard frontier > image.png"
   //std::string nodelist = "other stuff frontier00100";
-  std::string nodelist = "frontier[00100-00127]";
-  //std::string nodelist = "frontier[00100,00127]";
+  //std::string nodelist = "frontier[00101-00128]";
+  //std::string nodelist = "frontier[00101,00128]";
+  std::string nodelist = "try me frontier[00101,00128,00257-00384]";
   std::string machname = "frontier";
 
   // repeatedly look for the keyword in the string and generate jobs
   std::vector<job_t> jobs;
 
+  std::cout << "Parsing nodelist..." << std::endl;
+
   size_t pos = 0;
   while ((pos = nodelist.find(machname, pos)) != std::string::npos) {
-    std::cout << "found substring at position " << pos << std::endl;
+    //std::cout << "found substring at position " << pos << std::endl;
     // advance past the substring
     pos += machname.length();
     //std::cout << ", next char is (" << nodelist.at(pos) << ")" << std::endl;
@@ -188,30 +191,70 @@ int main(int argc, char *argv[])
     // start a potential new job
     job_t newjob;
     newjob.name = "job";
+    bool keep_going = true;
+    bool is_single = true;
 
-    // check first character for digit, otherwise keep looking
-    if (std::isdigit(nodelist.at(pos))) {
-      // read numbers 0..9 and build the nodeid
-      int nodeid = 0;
-      while (std::isdigit(nodelist.at(pos))) {
-        nodeid = nodeid*10 + (nodelist.at(pos) - '0');
+    while (keep_going) {
+      //std::cout << "continuing to read..." << std::endl;
+
+      // quit if there's no more characters
+      if (pos == nodelist.size()) {
+        //std::cout << "  reached end of string" << std::endl;
+        keep_going = false;
+
+      // if next char is a digit, find the number
+      } else if (std::isdigit(nodelist.at(pos))) {
+        //std::cout << "  next char is digit, reading number" << std::endl;
+
+        // read numbers 0..9 and build the nodeid
+        int nodeid = 0;
+        while (std::isdigit(nodelist.at(pos))) {
+          nodeid = nodeid*10 + (nodelist.at(pos) - '0');
+          ++pos;
+          if (pos == nodelist.size()) break;
+          //std::cout << ", next char is (" << nodelist.at(pos) << ")" << std::endl;
+        }
+        if (is_single) {
+          // if we're in single mode, add this one node to the list
+          //std::cout << "  adding nodeid (" << nodeid << ")" << std::endl;
+          newjob.nodeids.push_back(map_node_name(nodeid));
+        } else {
+          // the last char was a dash, add all nodes inclusive to the list
+          auto lastnodeid = newjob.nodeids[newjob.nodeids.size()-1];
+          //std::cout << "  adding nodes " << lastnodeid+1 << " to " << map_node_name(nodeid) << std::endl;
+          for (int thisid = lastnodeid+1; thisid <= map_node_name(nodeid); ++thisid) {
+            newjob.nodeids.push_back(thisid);
+          }
+          is_single = true;
+        }
+
+      // if it's a dash, get ready to read another number
+      } else if (nodelist.at(pos) == '-') {
+        //std::cout << "  next char is dash, setting flag" << std::endl;
+        is_single = false;
         ++pos;
-        if (pos == nodelist.size()) break;
-        //std::cout << ", next char is (" << nodelist.at(pos) << ")" << std::endl;
-      }
 
-      // add this node to the list
-      std::cout << "  adding nodeid (" << nodeid << ")" << std::endl;
-      newjob.nodeids.push_back(nodeid);
+      // if it's a comma, get ready to read another number
+      } else if (nodelist.at(pos) == ',') {
+        //std::cout << "  next char is comma, expecting another number" << std::endl;
+        ++pos;
+
+      // and if it's a bracket, we're done
+      } else if (nodelist.at(pos) == ']') {
+        //std::cout << "  next char is bracket, we're done with this entry" << std::endl;
+        keep_going = false;
+        ++pos;
+      }
     }
 
-    // check for a comma or a dash or something else
+    // add to list
     jobs.push_back(newjob);
   }
 
   // sort jobs from long to short
 
   // march through active jobs and draw them
+  std::cout << "Drawing active nodes..." << std::endl;
   for (auto job : jobs) {
 
     // now march through all participating nodes and color their boxes
