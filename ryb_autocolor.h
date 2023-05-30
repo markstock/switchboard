@@ -34,6 +34,10 @@ void get_next_color(unsigned char* _c) {
   if (not initialized) {
     rgen.seed(12345);
     initialized = true;
+
+    // fill in white and black initially to force the first few colors to be, ya know, COLORFUL
+    all_colors.push_back(std::array<float,3>({1.f,1.f,1.f}));
+    all_colors.push_back(std::array<float,3>({0.f,0.f,0.f}));
   }
   std::uniform_real_distribution<float> unif_real(0.0,1.0);
 
@@ -47,7 +51,7 @@ void get_next_color(unsigned char* _c) {
     float closest[3] = {0.0, 0.0, 0.0};
 
     // try random points for one that is far from all the others
-    for (int i=0; i<100; ++i) {
+    for (int i=0; i<10000; ++i) {
       // get a 3-tuple
       float p[3] = {unif_real(rgen), unif_real(rgen), unif_real(rgen)};
       //printf("random color is %g %g %g\n", p[0], p[1], p[2]);
@@ -80,11 +84,31 @@ void get_next_color(unsigned char* _c) {
   }
   //printf("picked color %g %g %g\n", pt[0], pt[1], pt[2]);
 
-  // save it as a color
+  // now pt is a random point in the unit cube
+
+  // save this position in the unit cube
   all_colors.push_back(std::array<float,3>({pt[0],pt[1],pt[2]}));
 
-  // expand it toward the edges
-  float color[3] = {pt[0], pt[1], pt[2]};
+  // assume pt is in ryb coords, now convert to rgb via linear interpolation
+  float w[8] = {pt[0]*pt[1]*pt[2],
+                pt[0]*pt[1]*(1.f-pt[2]),
+                pt[0]*(1.f-pt[1])*pt[2],
+                pt[0]*(1.f-pt[1])*(1.f-pt[2]),
+                (1.f-pt[0])*pt[1]*pt[2],
+                (1.f-pt[0])*pt[1]*(1.f-pt[2]),
+                (1.f-pt[0])*(1.f-pt[1])*pt[2],
+                (1.f-pt[0])*(1.f-pt[1])*(1.f-pt[2])};
+  float r[8] = {0.2,   1.0, 0.5, 1.0, 0.0,  1.0, 0.163, 1.0};
+  float g[8] = {0.094, 0.5, 0.0, 0.0, 0.66, 1.0, 0.373, 1.0};
+  float b[8] = {0.0,   1.0, 0.5, 0.0, 0.2,  0.0, 0.6,   1.0};
+  float rgb[3] = {0.0, 0.0, 0.0};
+  for (int i=0; i<8; ++i) rgb[0] += r[i]*w[i];
+  for (int i=0; i<8; ++i) rgb[1] += g[i]*w[i];
+  for (int i=0; i<8; ++i) rgb[2] += b[i]*w[i];
+  //printf("  becomes rgb %g %g %g\n", rgb[0], rgb[1], rgb[2]);
+
+  // expand it toward the edges (later)
+  float color[3] = {rgb[0], rgb[1], rgb[2]};
 
   // and convert to ryb
 
