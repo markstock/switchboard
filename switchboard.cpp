@@ -75,8 +75,8 @@ int main(int argc, char *argv[])
   int boxhgt[node_levels+1];
 
   // drawing sizes per node
-  boxszx[0] = 4;
-  boxszy[0] = 4;
+  boxszx[0] = 5;
+  boxszy[0] = 5;
   boxbdr[0] = 1;
   boxgap[0] = 2;
   boxwid[0] = boxgap[0] + 2*boxbdr[0] + boxszx[0];
@@ -258,6 +258,9 @@ int main(int argc, char *argv[])
 
   // sort jobs from long to short
 
+  // set drawing parameters
+  const bool overwrite_border = true;
+
   // march through active jobs and draw them
   std::cout << "Drawing active nodes..." << std::endl;
   for (auto job : jobs) {
@@ -282,13 +285,18 @@ int main(int argc, char *argv[])
       const int jnode = node / num_per_row[0];
 
       // pixel index of top left corner
-      const int idx = (boxgap[2]/2 + jgroup*boxhgt[1] + boxgap[1]/2 + jnode*boxhgt[0] + boxgap[0]/2 + boxbdr[0])*boxwid[2]
-                     + boxgap[2]/2 + igroup*boxwid[1] + boxgap[1]/2 + inode*boxwid[0] + boxgap[0]/2 + boxbdr[0];
+      const int bdr = (overwrite_border ? 0 : boxbdr[0]);
+      const int idx = (boxgap[2]/2 + jgroup*boxhgt[1] + boxgap[1]/2 + jnode*boxhgt[0] + boxgap[0]/2 + bdr)*boxwid[2]
+                     + boxgap[2]/2 + igroup*boxwid[1] + boxgap[1]/2 + inode*boxwid[0] + boxgap[0]/2 + bdr;
+
+      // and the size of the box to draw
+      const int xwid = boxszx[0] + (overwrite_border ? 2*boxbdr[0] : 0);
+      const int yhgt = boxszy[0] + (overwrite_border ? 2*boxbdr[0] : 0);
 
       // draw the block of color
-      for (int y=0; y<boxszy[0]; ++y) {
+      for (int y=0; y<yhgt; ++y) {
         const int py = idx + y*boxwid[2];
-        for (int x=0; x<boxszx[0]; ++x) {
+        for (int x=0; x<xwid; ++x) {
           const int px = py + x;
           for (int c=0; c<4; ++c) out_image[4*px+c] = color[c];
         }
