@@ -89,6 +89,9 @@ void get_next_color(unsigned char* _c) {
   // save this position in the unit cube
   all_colors.push_back(std::array<float,3>({pt[0],pt[1],pt[2]}));
 
+  // expand it toward the edges
+  for (int i=0; i<3; ++i) pt[i] = pt[i]*pt[i]*(3.f-2.f*pt[i]);
+
   // assume pt is in ryb coords, now convert to rgb via linear interpolation
   float w[8] = {pt[0]*pt[1]*pt[2],
                 pt[0]*pt[1]*(1.f-pt[2]),
@@ -98,24 +101,19 @@ void get_next_color(unsigned char* _c) {
                 (1.f-pt[0])*pt[1]*(1.f-pt[2]),
                 (1.f-pt[0])*(1.f-pt[1])*pt[2],
                 (1.f-pt[0])*(1.f-pt[1])*(1.f-pt[2])};
-  float r[8] = {0.2,   1.0, 0.5, 1.0, 0.0,  1.0, 0.163, 1.0};
-  float g[8] = {0.094, 0.5, 0.0, 0.0, 0.66, 1.0, 0.373, 1.0};
-  float b[8] = {0.0,   1.0, 0.5, 0.0, 0.2,  0.0, 0.6,   1.0};
+  static const float r[8] = {0.2,   1.0, 0.5, 1.0, 0.0,  1.0, 0.163, 1.0};
+  static const float g[8] = {0.094, 0.5, 0.0, 0.0, 0.66, 1.0, 0.373, 1.0};
+  static const float b[8] = {0.0,   1.0, 0.5, 0.0, 0.2,  0.0, 0.6,   1.0};
   float rgb[3] = {0.0, 0.0, 0.0};
   for (int i=0; i<8; ++i) rgb[0] += r[i]*w[i];
   for (int i=0; i<8; ++i) rgb[1] += g[i]*w[i];
   for (int i=0; i<8; ++i) rgb[2] += b[i]*w[i];
   //printf("  becomes rgb %g %g %g\n", rgb[0], rgb[1], rgb[2]);
 
-  // expand it toward the edges (later)
-  float color[3] = {rgb[0], rgb[1], rgb[2]};
-
-  // and convert to ryb
-
   // and convert it to unsigned chars
-  _c[0] = (unsigned int)(color[0]*255.999);
-  _c[1] = (unsigned int)(color[1]*255.999);
-  _c[2] = (unsigned int)(color[2]*255.999);
+  _c[0] = (unsigned int)(rgb[0]*255.999);
+  _c[1] = (unsigned int)(rgb[1]*255.999);
+  _c[2] = (unsigned int)(rgb[2]*255.999);
   _c[3] = 255;
   return;
 }
