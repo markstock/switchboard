@@ -32,16 +32,32 @@ struct machine_t {
 };
 
 // data for frontier
-std::string machname = "frontier";
-int const node_levels = 2;
+const std::string machname = "frontier";
+const int node_levels = 2;
 const int node_hierarchy[node_levels] = {128, 74};
 const int num_per_row[node_levels] = {8, 15};
+const int total_nodes = 9472;
 // map the name of the machine to a 0-indexed, continuous index
 int map_node_name(const int _n) {
   if (_n <= 9088) return _n-1;
   else if (_n >= 10113 and _n <= 10496) return _n-1025;
   else return -1;
 }
+
+/*
+// data for crusher
+const std::string machname = "crusher";
+const int node_levels = 2;
+const int node_hierarchy[node_levels] = {128, 2};
+const int num_per_row[node_levels] = {8, 2};
+const int total_nodes = 192;
+// map the name of the machine to a 0-indexed, continuous index
+int map_node_name(const int _n) {
+  if (_n <= 192) return _n-1;
+  else return -1;
+}
+*/
+
 
 // how many rows are needed?
 int rows_needed(const int _n, const int _nperrow) {
@@ -114,6 +130,7 @@ int main(int argc, char *argv[])
 
   int nnodes = 1;
   for (int i=0; i<node_levels; ++i) nnodes *= node_hierarchy[i];
+  if (nnodes > total_nodes) nnodes = total_nodes;
   std::cout << "Drawing outlines for " << nnodes << " nodes..." << std::endl;
 
   unsigned char bdrcolor[4] = {192, 192, 192, 255};
