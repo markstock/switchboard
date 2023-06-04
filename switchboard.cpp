@@ -143,50 +143,53 @@ int main(int argc, char *argv[])
 
     // can add openmp here if necessary
     for (int cnt = 0; cnt < total_num[i]; cnt++) {
-      const int group = cnt / num_per_level[0];
-      const int igroup = group % num_per_row[1];
-      const int jgroup = group / num_per_row[1];
-      const int node = cnt - group*num_per_level[0];
-      const int inode = node % num_per_row[0];
-      const int jnode = node / num_per_row[0];
+
+      const int group = cnt / num_per_level[i];
+      const int igroup = group % num_per_row[i+1];
+      const int jgroup = group / num_per_row[i+1];
+
+      const int node = cnt - group*num_per_level[i];
+      const int inode = node % num_per_row[i];
+      const int jnode = node / num_per_row[i];
 
       //std::cout << "Node " << cnt << " is " << node << " in group " << group << "\n";
       //printf("Node %d is %d (%d x %d) in group %d (%d x %d)\n", cnt, node, inode, jnode, group, igroup, jgroup);
 
       // pixel index of top left corner
-      const int idx = (boxgap[2]/2 + jgroup*boxhgt[1] + boxgap[1]/2 + jnode*boxhgt[0] + boxgap[0]/2)*boxwid[2]
-                     + boxgap[2]/2 + igroup*boxwid[1] + boxgap[1]/2 + inode*boxwid[0] + boxgap[0]/2;
+      const int col = boxgap[2]/2  +  jgroup*boxhgt[1] + boxgap[1]/2  +  jnode*boxhgt[0] + boxgap[0]/2;
+      const int row = boxgap[2]/2  +  igroup*boxwid[1] + boxgap[1]/2  +  inode*boxwid[0] + boxgap[0]/2;
+      const int idx = col*out_width + row;
 
       // draw the top and bottom bars
-      for (int y=0; y<boxbdr[0]; ++y) {
-        const int py = idx + y*boxwid[2];
-        for (int x=0; x<(boxszx[0]+2*boxbdr[0]); ++x) {
+      for (int y=0; y<boxbdr[i]; ++y) {
+        const int py = idx + y*out_width;
+        for (int x=0; x<(boxszx[i]+2*boxbdr[i]); ++x) {
           const int px = py + x;
           for (int c=0; c<4; ++c) out_image[4*px+c] = bdrcolor[c];
         }
       }
-      for (int y=0; y<boxbdr[0]; ++y) {
-        const int py = idx + (y+boxbdr[0]+boxszy[0])*boxwid[2];
-        for (int x=0; x<(boxszx[0]+2*boxbdr[0]); ++x) {
+      for (int y=0; y<boxbdr[i]; ++y) {
+        const int py = idx + (y+boxbdr[i]+boxszy[i])*out_width;
+        for (int x=0; x<(boxszx[i]+2*boxbdr[i]); ++x) {
           const int px = py + x;
           for (int c=0; c<4; ++c) out_image[4*px+c] = bdrcolor[c];
         }
       }
 
       // draw the sides
-      for (int y=0; y<boxszy[0]; ++y) {
-        const int py = idx + (y+boxbdr[0])*boxwid[2];
-        for (int x=0; x<boxbdr[0]; ++x) {
+      for (int y=0; y<boxszy[i]; ++y) {
+        const int py = idx + (y+boxbdr[i])*out_width;
+        for (int x=0; x<boxbdr[i]; ++x) {
           const int px = py + x;
           for (int c=0; c<4; ++c) out_image[4*px+c] = bdrcolor[c];
         }
-        for (int x=0; x<boxbdr[0]; ++x) {
-          const int px = py + boxbdr[0] + boxszx[0] + x;
+        for (int x=0; x<boxbdr[i]; ++x) {
+          const int px = py + boxbdr[i] + boxszx[i] + x;
           for (int c=0; c<4; ++c) out_image[4*px+c] = bdrcolor[c];
         }
       }
     }
-  }
+    }
   }
 
   // --------------------------------------------------------------------------
@@ -301,8 +304,9 @@ int main(int argc, char *argv[])
 
       // pixel index of top left corner
       const int bdr = (overwrite_border ? 0 : boxbdr[0]);
-      const int idx = (boxgap[2]/2 + jgroup*boxhgt[1] + boxgap[1]/2 + jnode*boxhgt[0] + boxgap[0]/2 + bdr)*boxwid[2]
-                     + boxgap[2]/2 + igroup*boxwid[1] + boxgap[1]/2 + inode*boxwid[0] + boxgap[0]/2 + bdr;
+      const int col = boxgap[2]/2  +  jgroup*boxhgt[1] + boxgap[1]/2  +  jnode*boxhgt[0] + boxgap[0]/2 + bdr;
+      const int row = boxgap[2]/2  +  igroup*boxwid[1] + boxgap[1]/2  +  inode*boxwid[0] + boxgap[0]/2 + bdr;
+      const int idx = col*out_width + row;
 
       // and the size of the box to draw
       const int xwid = boxszx[0] + (overwrite_border ? 2*boxbdr[0] : 0);
@@ -310,7 +314,7 @@ int main(int argc, char *argv[])
 
       // draw the block of color
       for (int y=0; y<yhgt; ++y) {
-        const int py = idx + y*boxwid[2];
+        const int py = idx + y*out_width;
         for (int x=0; x<xwid; ++x) {
           const int px = py + x;
           for (int c=0; c<4; ++c) out_image[4*px+c] = color[c];
