@@ -34,15 +34,15 @@ struct machine_t {
 //
 // data for frontier, exascale machine at ORNL
 //
-const std::string machname = "frontier";			// name to look for in nodelist
-const int base_size[2] = {5, 5};					// size of interior of finest block in pixels
-const int node_levels = 2;							// number of levels of hierarchy
-const int num_per_level[node_levels] = {128, 74};	// number of items in each level of hierarchy
-const int num_per_row[node_levels] = {8, 15};		// number of items to draw in one row in each level
-const int total_num[node_levels] = {9472, 74};		// total number of items in each level
-const int block_border[node_levels+1] = {1, 1, 1};	// width of drawn border in each level in pixels
-const int block_gap[node_levels+1] = {2, 8, 16};	// width of white-space gap between each item at each level in pixels
-int map_node_name(const int _n) {					// function to map the name of the machine to a 0-indexed, continuous index
+const std::string machname = "frontier";		// name to look for in nodelist
+const int base_size[2] = {5, 5};				// size of interior of finest block in pixels
+const int nlevels = 3;							// number of levels of hierarchy
+const int num_per_level[nlevels] = {128, 74, 1};// number of items in each level of hierarchy
+const int num_per_row[nlevels] = {8, 15, 1};	// number of items to draw in one row in each level
+const int total_num[nlevels] = {9472, 74, 1};	// total number of items in each level
+const int block_border[nlevels] = {1, 1, 1};	// width of drawn border in each level in pixels
+const int block_gap[nlevels] = {2, 8, 16};		// width of white-space gap between each item at each level in pixels
+int map_node_name(const int _n) {				// function to map the name of the machine to a 0-indexed, continuous index
   if (_n <= 9088) return _n-1;
   else if (_n >= 10113 and _n <= 10496) return _n-1025;
   else return -1;
@@ -51,10 +51,10 @@ int map_node_name(const int _n) {					// function to map the name of the machine
 /*
 // data for crusher
 const std::string machname = "crusher";
-const int node_levels = 2;
-const int num_per_level[node_levels] = {128, 2};
-const int num_per_row[node_levels] = {8, 2};
-const int total_num[node_levels] = {192, 2};
+const int nlevels = 3;
+const int num_per_level[nlevels] = {128, 2, 1};
+const int num_per_row[nlevels] = {8, 2, 1};
+const int total_num[nlevels] = {192, 2, 1};
 // map the name of the machine to a 0-indexed, continuous index
 int map_node_name(const int _n) {
   if (_n <= 192) return _n-1;
@@ -89,15 +89,15 @@ int main(int argc, char *argv[])
   // --------------------------------------------------------------------------
   // create arrays for the geometric hierarchy
 
-  int boxszx[node_levels+1];
-  int boxszy[node_levels+1];
-  int boxbdr[node_levels+1];
-  int boxgap[node_levels+1];
-  int boxwid[node_levels+1];
-  int boxhgt[node_levels+1];
+  int boxszx[nlevels];
+  int boxszy[nlevels];
+  int boxbdr[nlevels];
+  int boxgap[nlevels];
+  int boxwid[nlevels];
+  int boxhgt[nlevels];
 
   // set drawing sizes per node/block/image
-  for (int i=0; i<node_levels+1; ++i) {
+  for (int i=0; i<nlevels; ++i) {
 
     if (i==0) {
       boxszx[i] = base_size[0];
@@ -115,8 +115,8 @@ int main(int argc, char *argv[])
   // --------------------------------------------------------------------------
   // clear the image and set the background
 
-  unsigned int out_width = boxwid[node_levels];
-  unsigned int out_height = boxhgt[node_levels];
+  unsigned int out_width = boxwid[nlevels-1];
+  unsigned int out_height = boxhgt[nlevels-1];
   printf("Will create %d x %d image\n", out_width, out_height);
   std::vector<unsigned char> out_image;
   out_image.resize(out_width * out_height * 4);
@@ -135,9 +135,9 @@ int main(int argc, char *argv[])
 
   const unsigned char bdrcolor[4] = {192, 192, 192, 255};
 
-  //for (int i=0; i<=node_levels; ++i) {
-  for (int i=0; i<=0; ++i) {
-    std::cout << "Drawing outlines for " << total_num[i] << " blocks..." << std::endl;
+  //for (int i=0; i<nlevels; ++i) {
+  for (int i=0; i<1; ++i) {
+    std::cout << "Drawing outlines for " << total_num[i] << " blocks at level " << i << std::endl;
 
     if (boxbdr[i] > 0) {
 
