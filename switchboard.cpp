@@ -31,14 +31,18 @@ struct machine_t {
   // a mapping function from node name to 0-indexed id
 };
 
-// data for frontier
-const std::string machname = "frontier";
-const int node_levels = 2;
-const int num_per_level[node_levels] = {128, 74};
-const int num_per_row[node_levels] = {8, 15};
-const int total_num[node_levels] = {9472, 74};
-// map the name of the machine to a 0-indexed, continuous index
-int map_node_name(const int _n) {
+//
+// data for frontier, exascale machine at ORNL
+//
+const std::string machname = "frontier";			// name to look for in nodelist
+const int base_size[2] = {5, 5};					// size of interior of finest block in pixels
+const int node_levels = 2;							// number of levels of hierarchy
+const int num_per_level[node_levels] = {128, 74};	// number of items in each level of hierarchy
+const int num_per_row[node_levels] = {8, 15};		// number of items to draw in one row in each level
+const int total_num[node_levels] = {9472, 74};		// total number of items in each level
+const int block_border[node_levels+1] = {1, 1, 1};	// width of drawn border in each level in pixels
+const int block_gap[node_levels+1] = {2, 8, 16};	// width of white-space gap between each item at each level in pixels
+int map_node_name(const int _n) {					// function to map the name of the machine to a 0-indexed, continuous index
   if (_n <= 9088) return _n-1;
   else if (_n >= 10113 and _n <= 10496) return _n-1025;
   else return -1;
@@ -92,33 +96,27 @@ int main(int argc, char *argv[])
   int boxwid[node_levels+1];
   int boxhgt[node_levels+1];
 
-  // drawing sizes per node
-  boxszx[0] = 5;
-  boxszy[0] = 5;
-  boxbdr[0] = 1;
-  boxgap[0] = 2;
-  boxwid[0] = boxgap[0] + 2*boxbdr[0] + boxszx[0];
-  boxhgt[0] = boxgap[0] + 2*boxbdr[0] + boxszy[0];
-  // drawing sizes per block
-  boxszx[1] = num_per_row[0]*boxwid[0];
-  boxszy[1] = rows_needed(num_per_level[0],num_per_row[0])*boxhgt[0];
-  boxbdr[1] = 1;
-  boxgap[1] = boxwid[0];
-  boxwid[1] = boxgap[1] + 2*boxbdr[1] + boxszx[1];
-  boxhgt[1] = boxgap[1] + 2*boxbdr[1] + boxszy[1];
-  // and for the whole image
-  boxszx[2] = num_per_row[1]*boxwid[1];
-  boxszy[2] = rows_needed(num_per_level[1],num_per_row[1])*boxhgt[1];
-  boxbdr[2] = 1;
-  boxgap[2] = 2*boxgap[1];
-  boxwid[2] = boxgap[2] + 2*boxbdr[2] + boxszx[2];
-  boxhgt[2] = boxgap[2] + 2*boxbdr[2] + boxszy[2];
+  // set drawing sizes per node/block/image
+  for (int i=0; i<node_levels+1; ++i) {
+
+    if (i==0) {
+      boxszx[i] = base_size[0];
+      boxszy[i] = base_size[1];
+    } else {
+      boxszx[i] = num_per_row[i-1]*boxwid[i-1];
+      boxszy[i] = rows_needed(num_per_level[i-1],num_per_row[i-1])*boxhgt[i-1];
+    }
+    boxbdr[i] = block_border[i];
+    boxgap[i] = block_gap[i];
+    boxwid[i] = boxgap[i] + 2*boxbdr[i] + boxszx[i];
+    boxhgt[i] = boxgap[i] + 2*boxbdr[i] + boxszy[i];
+  }
 
   // --------------------------------------------------------------------------
   // clear the image and set the background
 
-  unsigned int out_width = boxwid[2];
-  unsigned int out_height = boxhgt[2];
+  unsigned int out_width = boxwid[node_levels];
+  unsigned int out_height = boxhgt[node_levels];
   printf("Will create %d x %d image\n", out_width, out_height);
   std::vector<unsigned char> out_image;
   out_image.resize(out_width * out_height * 4);
