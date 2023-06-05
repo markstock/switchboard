@@ -10,6 +10,7 @@
 #include "ryb_autocolor.h"
 
 #include "lodepng.h"
+#include "CLI11.hpp"
 
 #include <vector>
 #include <string>
@@ -71,17 +72,30 @@ int rows_needed(const int _n, const int _nperrow) {
 //
 // entry and exit
 //
-int main(int argc, char *argv[])
-{
-  const char* in_file = argc > 1 ? argv[1] : "nodelist";
-  const char* out_file = "out.png";
+int main(int argc, char *argv[]) {
+
+  std::cout << "switchboard v1.0\n";
+
+  // set up command line arg definitions
+  CLI::App app{"Find optimal paths in DEMs with modifier fields"};
+  std::string nodefn = "nodelist";
+  app.add_option("-n,--nodelist", nodefn, "name of nodelist text file");
+  std::string pngfn = "out.png";
+  app.add_option("-o,--output", pngfn, "name of output png file");
+
+  // finally parse
+  try {
+    app.parse(argc, argv);
+  } catch (const CLI::ParseError &e) {
+    return app.exit(e);
+  }
 
   // read the node list file into a single large string
   // node list can come from a copy-paste, or the output from "squeue -t running"
   // ideally can we do "squeue -t running | switchboard frontier > image.png"
 
   // load in the test file
-  std::ifstream ifs(in_file);
+  std::ifstream ifs(nodefn);
   assert (ifs.is_open() && "Could not open given node list file");
   std::string nodelist(std::istreambuf_iterator<char>{ifs}, {});
   ifs.close();
@@ -326,7 +340,7 @@ int main(int argc, char *argv[])
   // --------------------------------------------------------------------------
   // output to a new png
 
-  unsigned int error = lodepng::encode(out_file, out_image, out_width, out_height);
+  unsigned int error = lodepng::encode(pngfn.c_str(), out_image, out_width, out_height);
   //if there's an error, display it
   if (error) std::cout << "encoder error " << error << ": "<< lodepng_error_text(error) << std::endl;
 }

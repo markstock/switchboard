@@ -19,8 +19,7 @@ Generate the nodelist file with a command like
 * allow continuity of colors based on job ID
 * generalize the box-sizing code to any number of levels in a hierarchy (not just 2)
 * read the nodelist from stdin if "-" is given
-* read command line args to set some of these figures, specify an output filename
 * generalize the method by which machines are added - a user header file?
 
 ## Thanks
-Lodepng, OLCF
+[Lodepng](https://github.com/lvandeve/lodepng), [CLI11](https://github.com/CLIUtils/CLI11), [Oak Ridge National Laboratory](https://www.olcf.ornl.gov/)
