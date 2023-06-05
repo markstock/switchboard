@@ -7,7 +7,7 @@ Render a visual representation of the load on a supercomputer
 You should be able to build and run the code with:
 
 	make
-	./switchboard nodelist8192
+	./switchboard.bin -n nodelist8192 -o image.png
 
 Generate the nodelist file with a command like
 
