@@ -21,7 +21,8 @@
 #include <iterator>
 
 struct job_t {
-  std::string name;
+  //std::string name;
+  int jobid;
   std::vector<int> nodeids;
 };
 
@@ -231,7 +232,8 @@ int main(int argc, char *argv[]) {
   frame_t newframe;
 
   std::string nextframename = pngfn;
-  std::string nextjobname = "job";
+  //std::string nextjobname = "job";
+  int nextjobid = 1;
 
   size_t pos = 0;
   while (pos != std::string::npos) {
@@ -239,14 +241,35 @@ int main(int argc, char *argv[]) {
     // look for one of any particular search strings - or a line end
     auto nextnodename = nodelist.find(machname, pos);
     auto nextfilename = nodelist.find(nextfilekey, pos);
-    //auto nextreturn = nodelist.find("\n", pos);
-    //std::cout << "positions of next machine " << nextnodename << " and next filename " << nextfilename << std::endl;
+    auto nextnewline = nodelist.find('\n', pos);
+    //std::cout << "positions of next machine " << nextnodename << " filename " << nextfilename << "  and newline " << nextnewline << std::endl;
+    // must look for a line end because then the first number on the next line must be the jobID!
 
     if (nextfilename == nextnodename) {
-      // both are npos (end of "file")
+      // no more machines or files - both are npos (end of "file") - we're done
       pos = nextfilename;
 
-    } else if (nextfilename < nextnodename) {
+    } else if (nextnewline < nextnodename and nextnewline < nextfilename) {
+      // a newline is next - read it and look for the first number on the new line
+      pos = nextnewline;
+      // advance past all whitespace
+      while (std::isspace(nodelist.at(pos))) ++pos;
+      //std::cout << "  next char is (" << nodelist.at(pos) << ")" << std::endl;
+
+      // read numbers 0..9 and build the jobid
+      int jobid = 0;
+      while (std::isdigit(nodelist.at(pos))) {
+        jobid = jobid*10 + (nodelist.at(pos) - '0');
+        ++pos;
+        if (pos == nodelist.size()) break;
+        //std::cout << ", next char is (" << nodelist.at(pos) << ")" << std::endl;
+      }
+      //std::cout << "  found jobid (" << jobid << ")" << std::endl;
+      nextjobid = jobid;
+      //exit(1);
+
+    } else if (nextfilename < nextnodename and nextfilename < nextnewline) {
+      // next actionable keyword is a new image file name
 
       // if there were jobs, push all of those into a new frame
       if (not newframe.jobs.empty()) {
@@ -275,7 +298,7 @@ int main(int argc, char *argv[]) {
       std::cout << "Read filename (" << nextframename << ")" << std::endl;
 
     } else {
-      // this is a job, parse it
+      // next actionable keyword is a new job, parse it
       pos = nextnodename;
 
       //std::cout << "found machine name at position " << pos << std::endl;
@@ -288,7 +311,7 @@ int main(int argc, char *argv[]) {
 
       // start a potential new job
       job_t newjob;
-      newjob.name = "job";
+      //newjob.name = "job";
       bool keep_going = true;
       bool is_single = true;
 
@@ -349,8 +372,13 @@ int main(int argc, char *argv[]) {
       } // end while (keep_going)
 
       // add to list
-      std::cout << "  adding job with " << newjob.nodeids.size() << " nodes" << std::endl;
+      std::cout << "  adding job " << nextjobid << " with " << newjob.nodeids.size() << " nodes" << std::endl;
+      newjob.jobid = nextjobid;
       newframe.jobs.push_back(newjob);
+
+      // increment jobid in case it isn't given
+      nextjobid++;
+
     } // end adding job
   }
 
@@ -379,6 +407,8 @@ int main(int argc, char *argv[]) {
 
       // get a color for this job
       unsigned char color[4];
+      // check database for this jobid - return its color
+      // or always generate a new one
       (void) get_next_color(color);
 
       // now march through all participating nodes and color their boxes
