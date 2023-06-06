@@ -37,6 +37,8 @@ struct frame_t {
   // a mapping function from node name to 0-indexed id
 //};
 
+const std::string nextfilekey = "file";		// keyword to look for to start a new file
+
 //
 // data for frontier, exascale machine at ORNL
 //
@@ -232,95 +234,128 @@ int main(int argc, char *argv[]) {
   std::string nextjobname = "job";
 
   size_t pos = 0;
-  while ((pos = nodelist.find(machname, pos)) != std::string::npos) {
-  //while (pos != std::string::npos) {
+  while (pos != std::string::npos) {
 
     // look for one of any particular search strings - or a line end
-    //auto nextnodename = nodelist.find(machname, pos);
-    //auto nextfilename = nodelist.find("file", pos);
+    auto nextnodename = nodelist.find(machname, pos);
+    auto nextfilename = nodelist.find(nextfilekey, pos);
     //auto nextreturn = nodelist.find("\n", pos);
+    //std::cout << "positions of next machine " << nextnodename << " and next filename " << nextfilename << std::endl;
 
-    //if (nextnodename < nextfilename) {
-      // this is a job, parse it
-    //} else {
-      // this is a new file name, save the previous image and start a new one
-    //}
+    if (nextfilename == nextnodename) {
+      // both are npos (end of "file")
+      pos = nextfilename;
 
-    //std::cout << "found machine name at position " << pos << std::endl;
-    // advance past the substring
-    pos += machname.length();
-    //std::cout << ", next char is (" << nodelist.at(pos) << ")" << std::endl;
-    // advance only if next character is a [
-    if (nodelist.at(pos) == '[') ++pos;
-    //std::cout << ", next char is (" << nodelist.at(pos) << ")" << std::endl;
+    } else if (nextfilename < nextnodename) {
 
-    // start a potential new job
-    job_t newjob;
-    newjob.name = "job";
-    bool keep_going = true;
-    bool is_single = true;
+      // if there were jobs, push all of those into a new frame
+      if (not newframe.jobs.empty()) {
+        std::cout << "Finishing frame with " << newframe.jobs.size() << " jobs" << std::endl;
+        newframe.name = nextframename;
+        frames.push_back(newframe);
 
-    while (keep_going) {
-      //std::cout << "continuing to read..." << std::endl;
-
-      // quit if there's no more characters
-      if (pos == nodelist.size()) {
-        //std::cout << "  reached end of string" << std::endl;
-        keep_going = false;
-
-      // if next char is a digit, find the number
-      } else if (std::isdigit(nodelist.at(pos))) {
-        //std::cout << "  next char is digit, reading number" << std::endl;
-
-        // read numbers 0..9 and build the nodeid
-        int nodeid = 0;
-        while (std::isdigit(nodelist.at(pos))) {
-          nodeid = nodeid*10 + (nodelist.at(pos) - '0');
-          ++pos;
-          if (pos == nodelist.size()) break;
-          //std::cout << ", next char is (" << nodelist.at(pos) << ")" << std::endl;
-        }
-        if (is_single) {
-          // if we're in single mode, add this one node to the list
-          //std::cout << "  adding nodeid (" << nodeid << ")" << std::endl;
-          newjob.nodeids.push_back(map_node_name(nodeid));
-        } else {
-          // the last char was a dash, add all nodes inclusive to the list
-          auto lastnodeid = newjob.nodeids[newjob.nodeids.size()-1];
-          //std::cout << "  adding nodes " << lastnodeid+1 << " to " << map_node_name(nodeid) << std::endl;
-          for (int thisid = lastnodeid+1; thisid <= map_node_name(nodeid); ++thisid) {
-            newjob.nodeids.push_back(thisid);
-          }
-          is_single = true;
-        }
-
-      // if it's a dash, get ready to read another number
-      } else if (nodelist.at(pos) == '-') {
-        //std::cout << "  next char is dash, setting flag" << std::endl;
-        is_single = false;
-        ++pos;
-
-      // if it's a comma, get ready to read another number
-      } else if (nodelist.at(pos) == ',') {
-        //std::cout << "  next char is comma, expecting another number" << std::endl;
-        ++pos;
-
-      // and if it's a bracket, we're done
-      } else if (nodelist.at(pos) == ']') {
-        //std::cout << "  next char is bracket, we're done with this entry" << std::endl;
-        keep_going = false;
-        ++pos;
-
-      } else {
-        keep_going = false;
+        // clear out the temp frame's jobs list
+        newframe.jobs.clear();
       }
-    }
 
-    // add to list
-    newframe.jobs.push_back(newjob);
+      pos = nextfilename;
+
+      // this is a new file name, save it until we need it
+      // advance past the substring
+      pos += nextfilekey.length();
+      // advance past all whitespace
+      while (std::isspace(nodelist.at(pos))) ++pos;
+      //std::cout << "  next char is (" << nodelist.at(pos) << ")" << std::endl;
+      // find the next non-space character
+      const size_t firstchar = pos;
+      while (not std::isspace(nodelist.at(pos))) ++pos;
+      const size_t lastchar = pos;
+      // and read the filename into a string
+      nextframename = nodelist.substr(firstchar, lastchar-firstchar);
+      std::cout << "Read filename (" << nextframename << ")" << std::endl;
+
+    } else {
+      // this is a job, parse it
+      pos = nextnodename;
+
+      //std::cout << "found machine name at position " << pos << std::endl;
+      // advance past the substring
+      pos += machname.length();
+      //std::cout << ", next char is (" << nodelist.at(pos) << ")" << std::endl;
+      // advance only if next character is a [
+      if (nodelist.at(pos) == '[') ++pos;
+      //std::cout << ", next char is (" << nodelist.at(pos) << ")" << std::endl;
+
+      // start a potential new job
+      job_t newjob;
+      newjob.name = "job";
+      bool keep_going = true;
+      bool is_single = true;
+
+      while (keep_going) {
+        //std::cout << "continuing to read..." << std::endl;
+
+        // quit if there's no more characters
+        if (pos == nodelist.size()) {
+          //std::cout << "  reached end of string" << std::endl;
+          keep_going = false;
+
+        // if next char is a digit, find the number
+        } else if (std::isdigit(nodelist.at(pos))) {
+          //std::cout << "  next char is digit, reading number" << std::endl;
+
+          // read numbers 0..9 and build the nodeid
+          int nodeid = 0;
+          while (std::isdigit(nodelist.at(pos))) {
+            nodeid = nodeid*10 + (nodelist.at(pos) - '0');
+            ++pos;
+            if (pos == nodelist.size()) break;
+            //std::cout << ", next char is (" << nodelist.at(pos) << ")" << std::endl;
+          }
+          if (is_single) {
+            // if we're in single mode, add this one node to the list
+            //std::cout << "  adding nodeid (" << nodeid << ")" << std::endl;
+            newjob.nodeids.push_back(map_node_name(nodeid));
+          } else {
+            // the last char was a dash, add all nodes inclusive to the list
+            auto lastnodeid = newjob.nodeids[newjob.nodeids.size()-1];
+            //std::cout << "  adding nodes " << lastnodeid+1 << " to " << map_node_name(nodeid) << std::endl;
+            for (int thisid = lastnodeid+1; thisid <= map_node_name(nodeid); ++thisid) {
+              newjob.nodeids.push_back(thisid);
+            }
+            is_single = true;
+          }
+
+        // if it's a dash, get ready to read another number
+        } else if (nodelist.at(pos) == '-') {
+          //std::cout << "  next char is dash, setting flag" << std::endl;
+          is_single = false;
+          ++pos;
+
+        // if it's a comma, get ready to read another number
+        } else if (nodelist.at(pos) == ',') {
+          //std::cout << "  next char is comma, expecting another number" << std::endl;
+          ++pos;
+
+        // and if it's a bracket, we're done
+        } else if (nodelist.at(pos) == ']') {
+          //std::cout << "  next char is bracket, we're done with this entry" << std::endl;
+          keep_going = false;
+          ++pos;
+
+        } else {
+          keep_going = false;
+        }
+      } // end while (keep_going)
+
+      // add to list
+      std::cout << "  adding job with " << newjob.nodeids.size() << " nodes" << std::endl;
+      newframe.jobs.push_back(newjob);
+    } // end adding job
   }
 
   // put whatever's on the stack into the last/only frame
+  std::cout << "Finishing last frame with " << newframe.jobs.size() << " jobs" << std::endl;
   newframe.name = nextframename;
   frames.push_back(newframe);
 
