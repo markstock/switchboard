@@ -23,6 +23,14 @@ std::vector<std::array<float,3>> all_colors;
 //  return;
 //}
 
+// empty out the vector
+void reset_color_palette() {
+  all_colors.clear();
+  // and fill in the black and white colors again
+  all_colors.push_back(std::array<float,3>({1.f,1.f,1.f}));
+  all_colors.push_back(std::array<float,3>({0.f,0.f,0.f}));
+}
+
 // the real one
 void get_next_color(unsigned char* _c) {
 
@@ -35,9 +43,8 @@ void get_next_color(unsigned char* _c) {
     rgen.seed(12345);
     initialized = true;
 
-    // fill in white and black initially to force the first few colors to be, ya know, COLORFUL
-    all_colors.push_back(std::array<float,3>({1.f,1.f,1.f}));
-    all_colors.push_back(std::array<float,3>({0.f,0.f,0.f}));
+    // ensure that we're empty
+    reset_color_palette();
   }
   std::uniform_real_distribution<float> unif_real(0.0,1.0);
 

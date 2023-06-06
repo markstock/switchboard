@@ -227,7 +227,9 @@ int main(int argc, char *argv[]) {
 
   // start a potential new frame
   frame_t newframe;
-  newframe.name = pngfn;
+
+  std::string nextframename = pngfn;
+  std::string nextjobname = "job";
 
   size_t pos = 0;
   while ((pos = nodelist.find(machname, pos)) != std::string::npos) {
@@ -244,7 +246,7 @@ int main(int argc, char *argv[]) {
       // this is a new file name, save the previous image and start a new one
     //}
 
-    //std::cout << "found substring at position " << pos << std::endl;
+    //std::cout << "found machine name at position " << pos << std::endl;
     // advance past the substring
     pos += machname.length();
     //std::cout << ", next char is (" << nodelist.at(pos) << ")" << std::endl;
@@ -317,6 +319,9 @@ int main(int argc, char *argv[]) {
     // add to list
     newframe.jobs.push_back(newjob);
   }
+
+  // put whatever's on the stack into the last/only frame
+  newframe.name = nextframename;
   frames.push_back(newframe);
 
   // --------------------------------------------------------------------------
@@ -330,6 +335,9 @@ int main(int argc, char *argv[]) {
 
     // prepare the new output image as a copy of the baseline image
     std::vector<unsigned char> out_image = base_image;
+
+    // reset the color palette (later we will maintain it so same jobs have constant color)
+    reset_color_palette();
 
     std::cout << "Drawing active nodes into " << frame.name << std::endl;
     for (auto job : frame.jobs) {
