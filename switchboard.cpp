@@ -25,42 +25,52 @@ struct job_t {
   std::vector<int> nodeids;
 };
 
-struct machine_t {
-  // the machine name to search for
+struct frame_t {
   std::string name;
+  std::vector<job_t> jobs;
+};
+
+//struct machine_t {
+  // the machine name to search for
+  //std::string name;
   // the node hierarchy
   // a mapping function from node name to 0-indexed id
-};
+//};
 
 //
 // data for frontier, exascale machine at ORNL
 //
+// machine-specific
 const std::string machname = "frontier";		// name to look for in nodelist
-const int base_size[2] = {5, 5};				// size of interior of finest block in pixels
 const int nlevels = 3;							// number of levels of hierarchy
 const int num_per_level[nlevels] = {128, 74, 1};// number of items in each level of hierarchy
-const int num_per_row[nlevels] = {8, 15, 1};	// number of items to draw in one row in each level
 const int total_num[nlevels] = {9472, 74, 1};	// total number of items in each level
-const int block_border[nlevels] = {1, 1, 1};	// width of drawn border in each level in pixels
-const int block_gap[nlevels] = {2, 8, 16};		// width of white-space gap between each item at each level in pixels
 int map_node_name(const int _n) {				// function to map the name of the machine to a 0-indexed, continuous index
   if (_n <= 9088) return _n-1;
   else if (_n >= 10113 and _n <= 10496) return _n-1025;
   else return -1;
 }
+// drawing-specific
+const int base_size[2] = {5, 5};				// size of interior of finest block in pixels
+const int num_per_row[nlevels] = {8, 15, 1};	// number of items to draw in one row in each level
+const int block_border[nlevels] = {1, 1, 1};	// width of drawn border in each level in pixels
+const int block_gap[nlevels] = {2, 8, 16};		// width of white-space gap between each item at each level in pixels
 
 /*
 // data for crusher
 const std::string machname = "crusher";
 const int nlevels = 3;
 const int num_per_level[nlevels] = {128, 2, 1};
-const int num_per_row[nlevels] = {8, 2, 1};
 const int total_num[nlevels] = {192, 2, 1};
 // map the name of the machine to a 0-indexed, continuous index
 int map_node_name(const int _n) {
   if (_n <= 192) return _n-1;
   else return -1;
 }
+const int base_size[2] = {5, 5};				// size of interior of finest block in pixels
+const int num_per_row[nlevels] = {8, 2, 1};
+const int block_border[nlevels] = {1, 1, 1};	// width of drawn border in each level in pixels
+const int block_gap[nlevels] = {2, 8, 16};		// width of white-space gap between each item at each level in pixels
 */
 
 
@@ -90,15 +100,8 @@ int main(int argc, char *argv[]) {
     return app.exit(e);
   }
 
-  // read the node list file into a single large string
   // node list can come from a copy-paste, or the output from "squeue -t running"
   // ideally can we do "squeue -t running | switchboard frontier > image.png"
-
-  // load in the test file
-  std::ifstream ifs(nodefn);
-  assert (ifs.is_open() && "Could not open given node list file");
-  std::string nodelist(std::istreambuf_iterator<char>{ifs}, {});
-  ifs.close();
 
   // --------------------------------------------------------------------------
   // create arrays for the geometric hierarchy
@@ -127,21 +130,21 @@ int main(int argc, char *argv[]) {
   }
 
   // --------------------------------------------------------------------------
-  // clear the image and set the background
+  // allocate and initialize the base image
 
   unsigned int out_width = boxwid[nlevels-1];
   unsigned int out_height = boxhgt[nlevels-1];
   printf("Will create %d x %d image\n", out_width, out_height);
-  std::vector<unsigned char> out_image;
-  out_image.resize(out_width * out_height * 4);
+  std::vector<unsigned char> base_image;
+  base_image.resize(out_width * out_height * 4);
 
   // fill with solid white
   const unsigned char bgcolor[4] = {255, 255, 255, 255};
   for (unsigned int i = 0; i < out_width*out_height; i++) {
-    out_image[4*i+0] = bgcolor[0];
-    out_image[4*i+1] = bgcolor[1];
-    out_image[4*i+2] = bgcolor[2];
-    out_image[4*i+3] = bgcolor[3];
+    base_image[4*i+0] = bgcolor[0];
+    base_image[4*i+1] = bgcolor[1];
+    base_image[4*i+2] = bgcolor[2];
+    base_image[4*i+3] = bgcolor[3];
   }
 
   // --------------------------------------------------------------------------
@@ -179,14 +182,14 @@ int main(int argc, char *argv[]) {
         const int py = idx + y*out_width;
         for (int x=0; x<(boxszx[i]+2*boxbdr[i]); ++x) {
           const int px = py + x;
-          for (int c=0; c<4; ++c) out_image[4*px+c] = bdrcolor[c];
+          for (int c=0; c<4; ++c) base_image[4*px+c] = bdrcolor[c];
         }
       }
       for (int y=0; y<boxbdr[i]; ++y) {
         const int py = idx + (y+boxbdr[i]+boxszy[i])*out_width;
         for (int x=0; x<(boxszx[i]+2*boxbdr[i]); ++x) {
           const int px = py + x;
-          for (int c=0; c<4; ++c) out_image[4*px+c] = bdrcolor[c];
+          for (int c=0; c<4; ++c) base_image[4*px+c] = bdrcolor[c];
         }
       }
 
@@ -195,11 +198,11 @@ int main(int argc, char *argv[]) {
         const int py = idx + (y+boxbdr[i])*out_width;
         for (int x=0; x<boxbdr[i]; ++x) {
           const int px = py + x;
-          for (int c=0; c<4; ++c) out_image[4*px+c] = bdrcolor[c];
+          for (int c=0; c<4; ++c) base_image[4*px+c] = bdrcolor[c];
         }
         for (int x=0; x<boxbdr[i]; ++x) {
           const int px = py + boxbdr[i] + boxszx[i] + x;
-          for (int c=0; c<4; ++c) out_image[4*px+c] = bdrcolor[c];
+          for (int c=0; c<4; ++c) base_image[4*px+c] = bdrcolor[c];
         }
       }
     }
@@ -207,13 +210,40 @@ int main(int argc, char *argv[]) {
   }
 
   // --------------------------------------------------------------------------
+  // read the node list file into a single large string (could be >10MB per day)
+  std::ifstream ifs(nodefn);
+  assert (ifs.is_open() && "Could not open given node list file");
+  std::cout << "Reading nodelist..." << std::endl;
+  std::string nodelist(std::istreambuf_iterator<char>{ifs}, {});
+  ifs.close();
+
+  // --------------------------------------------------------------------------
   // repeatedly look for the keyword in the nodelist string and generate jobs
-  std::vector<job_t> jobs;
 
   std::cout << "Parsing nodelist..." << std::endl;
 
+  // store all data in a vector of frames
+  std::vector<frame_t> frames;
+
+  // start a potential new frame
+  frame_t newframe;
+  newframe.name = pngfn;
+
   size_t pos = 0;
   while ((pos = nodelist.find(machname, pos)) != std::string::npos) {
+  //while (pos != std::string::npos) {
+
+    // look for one of any particular search strings - or a line end
+    //auto nextnodename = nodelist.find(machname, pos);
+    //auto nextfilename = nodelist.find("file", pos);
+    //auto nextreturn = nodelist.find("\n", pos);
+
+    //if (nextnodename < nextfilename) {
+      // this is a job, parse it
+    //} else {
+      // this is a new file name, save the previous image and start a new one
+    //}
+
     //std::cout << "found substring at position " << pos << std::endl;
     // advance past the substring
     pos += machname.length();
@@ -285,63 +315,69 @@ int main(int argc, char *argv[]) {
     }
 
     // add to list
-    jobs.push_back(newjob);
+    newframe.jobs.push_back(newjob);
   }
+  frames.push_back(newframe);
 
   // --------------------------------------------------------------------------
-  // march through active jobs and draw them
+  // march through active frames and jobs and draw them
 
   // set drawing parameters
   const bool overwrite_border = true;
 
-  std::cout << "Drawing active nodes..." << std::endl;
-  for (auto job : jobs) {
+  // loop over all frames in vector
+  for (auto frame : frames) {
 
-    // get a color for this job
-    unsigned char color[4];
-    (void) get_next_color(color);
+    // prepare the new output image as a copy of the baseline image
+    std::vector<unsigned char> out_image = base_image;
 
-    // now march through all participating nodes and color their boxes
-    for (auto nodeid : job.nodeids) {
+    std::cout << "Drawing active nodes into " << frame.name << std::endl;
+    for (auto job : frame.jobs) {
 
-      // convert node name/number to 0-index (already done!)
-      const int nodeidx = nodeid;
+      // get a color for this job
+      unsigned char color[4];
+      (void) get_next_color(color);
 
-      if (nodeidx < 0) continue;
+      // now march through all participating nodes and color their boxes
+      for (auto nodeid : job.nodeids) {
 
-      const int group = nodeidx / num_per_level[0];
-      const int igroup = group % num_per_row[1];
-      const int jgroup = group / num_per_row[1];
-      const int node = nodeidx - group*num_per_level[0];
-      const int inode = node % num_per_row[0];
-      const int jnode = node / num_per_row[0];
+        // convert node name/number to 0-index (already done!)
+        const int nodeidx = nodeid;
 
-      // pixel index of top left corner
-      const int bdr = (overwrite_border ? 0 : boxbdr[0]);
-      const int col = boxgap[2]/2  +  jgroup*boxhgt[1] + boxgap[1]/2  +  jnode*boxhgt[0] + boxgap[0]/2 + bdr;
-      const int row = boxgap[2]/2  +  igroup*boxwid[1] + boxgap[1]/2  +  inode*boxwid[0] + boxgap[0]/2 + bdr;
-      const int idx = col*out_width + row;
+        if (nodeidx < 0) continue;
 
-      // and the size of the box to draw
-      const int xwid = boxszx[0] + (overwrite_border ? 2*boxbdr[0] : 0);
-      const int yhgt = boxszy[0] + (overwrite_border ? 2*boxbdr[0] : 0);
+        const int group = nodeidx / num_per_level[0];
+        const int igroup = group % num_per_row[1];
+        const int jgroup = group / num_per_row[1];
+        const int node = nodeidx - group*num_per_level[0];
+        const int inode = node % num_per_row[0];
+        const int jnode = node / num_per_row[0];
 
-      // draw the block of color
-      for (int y=0; y<yhgt; ++y) {
-        const int py = idx + y*out_width;
-        for (int x=0; x<xwid; ++x) {
-          const int px = py + x;
-          for (int c=0; c<4; ++c) out_image[4*px+c] = color[c];
+        // pixel index of top left corner
+        const int bdr = (overwrite_border ? 0 : boxbdr[0]);
+        const int col = boxgap[2]/2  +  jgroup*boxhgt[1] + boxgap[1]/2  +  jnode*boxhgt[0] + boxgap[0]/2 + bdr;
+        const int row = boxgap[2]/2  +  igroup*boxwid[1] + boxgap[1]/2  +  inode*boxwid[0] + boxgap[0]/2 + bdr;
+        const int idx = col*out_width + row;
+
+        // and the size of the box to draw
+        const int xwid = boxszx[0] + (overwrite_border ? 2*boxbdr[0] : 0);
+        const int yhgt = boxszy[0] + (overwrite_border ? 2*boxbdr[0] : 0);
+
+        // draw the block of color
+        for (int y=0; y<yhgt; ++y) {
+          const int py = idx + y*out_width;
+          for (int x=0; x<xwid; ++x) {
+            const int px = py + x;
+            for (int c=0; c<4; ++c) out_image[4*px+c] = color[c];
+          }
         }
       }
     }
+
+    // output to a new png
+    unsigned int error = lodepng::encode(frame.name.c_str(), out_image, out_width, out_height);
+    //if there's an error, display it
+    if (error) std::cout << "  Encoder error " << error << ": "<< lodepng_error_text(error) << std::endl;
   }
-
-  // --------------------------------------------------------------------------
-  // output to a new png
-
-  unsigned int error = lodepng::encode(pngfn.c_str(), out_image, out_width, out_height);
-  //if there's an error, display it
-  if (error) std::cout << "encoder error " << error << ": "<< lodepng_error_text(error) << std::endl;
 }
 
