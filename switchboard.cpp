@@ -13,6 +13,7 @@
 #include "CLI11.hpp"
 
 #include <vector>
+#include <array>
 #include <string>
 #include <fstream>
 #include <iostream>
@@ -393,23 +394,24 @@ int main(int argc, char *argv[]) {
   // set drawing parameters
   const bool overwrite_border = true;
 
+  // reset the color palette (later we will maintain it so same jobs have constant color)
+  reset_color_palette();
+
   // loop over all frames in vector
   for (auto frame : frames) {
 
     // prepare the new output image as a copy of the baseline image
     std::vector<unsigned char> out_image = base_image;
 
-    // reset the color palette (later we will maintain it so same jobs have constant color)
-    reset_color_palette();
-
     std::cout << "Drawing active nodes into " << frame.name << std::endl;
     for (auto job : frame.jobs) {
 
       // get a color for this job
-      unsigned char color[4];
+      std::array<unsigned char,4> color;
       // check database for this jobid - return its color
+      (void) get_next_color(job.jobid, color.data());
       // or always generate a new one
-      (void) get_next_color(color);
+      //(void) get_next_color(color);
 
       // now march through all participating nodes and color their boxes
       for (auto nodeid : job.nodeids) {
@@ -451,6 +453,9 @@ int main(int argc, char *argv[]) {
     unsigned int error = lodepng::encode(frame.name.c_str(), out_image, out_width, out_height);
     //if there's an error, display it
     if (error) std::cout << "  Encoder error " << error << ": "<< lodepng_error_text(error) << std::endl;
+
+    // "age" each of the colors by 1
+    age_all_colors();
   }
 }
 
