@@ -32,3 +32,6 @@
 *.app
 *.bin
 2023*png
+frame*png
+*.gif
+*.mp4
