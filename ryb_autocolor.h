@@ -6,6 +6,8 @@
 // (c)2023 Mark J Stock <markjstock@gmail.com>
 //
 
+#pragma once
+
 #include <vector>
 #include <array>
 #include <map>
