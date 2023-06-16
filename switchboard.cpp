@@ -8,7 +8,8 @@
 //
 
 #include "switchboard.h"
-#include "ryb_autocolor.h"
+#include "hpe_autocolor.h"
+#include "gen_node_list.h"
 
 #include "lodepng.h"
 #include "CLI11.hpp"
@@ -29,18 +30,17 @@
 // machine-specific
 const std::string machname = "frontier";		// name to look for in nodelist
 const int nlevels = 3;							// number of levels of hierarchy
-const int num_per_level[nlevels] = {128, 74, 1};// number of items in each level of hierarchy
-const int total_num[nlevels] = {9472, 74, 1};	// total number of items in each level
+const int num_per_level[nlevels] = {128, 27, 1};// number of items in each level of hierarchy
+const int total_num[nlevels] = {3456, 27, 1};	// total number of items in each level
 int map_node_name(const int _n) {				// function to map the name of the machine to a 0-indexed, continuous index
-  if (_n <= 9088) return _n-1;
-  else if (_n >= 10113 and _n <= 10496) return _n-1025;
-  else return -1;
+  if (_n <= 3456) return _n-1;
+  else return 3455;
 }
 // drawing-specific
-const int base_size[2] = {5, 5};				// size of interior of finest block in pixels
-const int num_per_row[nlevels] = {8, 15, 1};	// number of items to draw in one row in each level
-const int block_border[nlevels] = {1, 1, 1};	// width of drawn border in each level in pixels
-const int block_gap[nlevels] = {2, 8, 16};		// width of white-space gap between each item at each level in pixels
+const int base_size[2] = {8, 8};				// size of interior of finest block in pixels
+const int num_per_row[nlevels] = {8, 9, 1};	// number of items to draw in one row in each level
+const int block_border[nlevels] = {0, 0, 0};	// width of drawn border in each level in pixels
+const int block_gap[nlevels] = {2, 12, 8};		// width of white-space gap between each item at each level in pixels
 
 /*
 // data for crusher
@@ -74,7 +74,7 @@ int main(int argc, char *argv[]) {
 
   // set up command line arg definitions
   CLI::App app{"Find optimal paths in DEMs with modifier fields"};
-  std::string nodefn = "nodelist";
+  std::string nodefn;
   app.add_option("-n,--nodelist", nodefn, "name of nodelist text file");
   std::string pngfn = "out.png";
   app.add_option("-o,--output", pngfn, "name of output png file");
@@ -125,7 +125,7 @@ int main(int argc, char *argv[]) {
   base_image.resize(out_width * out_height * 4);
 
   // fill with solid white
-  const unsigned char bgcolor[4] = {255, 255, 255, 255};
+  const unsigned char bgcolor[4] = {0, 0, 0, 255};
   for (unsigned int i = 0; i < out_width*out_height; i++) {
     base_image[4*i+0] = bgcolor[0];
     base_image[4*i+1] = bgcolor[1];
@@ -196,7 +196,7 @@ int main(int argc, char *argv[]) {
   }
 
   // draw a default color for every node
-  if (false) {
+  if (true) {
     // get a color for this job
     const unsigned char unused[4] = {231, 231, 231, 255};
 
@@ -238,6 +238,13 @@ int main(int argc, char *argv[]) {
 
   // store all data in a vector of frames
   std::vector<frame_t> frames;
+
+  if (nodefn.empty()) {
+
+  // generate a nodelist from scratch
+  gen_nodelist(frames, total_num[0], 400);
+
+  } else {
 
   // read the node list file into a single large string (could be >10MB per day)
   std::ifstream ifs(nodefn);
@@ -404,6 +411,125 @@ int main(int argc, char *argv[]) {
   newframe.name = nextframename;
   frames.push_back(newframe);
 
+  } // end test for nodelist
+
+  // --------------------------------------------------------------------------
+  // select jobs to fail
+  if (true) {
+    std::cout << "Picking nodes and jobs to die" << std::endl;
+    // need random numbers for the fail checks
+    std::random_device rdev;    // Will be used to obtain a seed for the random number engine
+    static std::mt19937 rgen(rdev());   // Standard mersenne_twister_engine seeded with rd()
+    std::uniform_real_distribution<float> unif_real(0.0,1.0);
+
+    std::vector<int> failedjobids;
+
+    const float mtbf = 30.f;
+    const float pfail = 1.f/mtbf;
+
+    // march through the frames and fail nodes
+    for (size_t iframe=0; iframe<frames.size(); ++iframe) {
+      // does a node fail this frame?
+      if (unif_real(rgen) < pfail) {
+
+        // yes, pick the node
+        const int knode = unif_real(rgen) * total_num[0];
+        std::cout << "  node " << knode << " dies after frame " << iframe << std::endl;
+
+        // look through the jobs to find out who's running on that node
+        int kid = -1;
+        for (auto job : frames[iframe].jobs) {
+          for (auto inode : job.nodeids) {
+            if (knode == inode) {
+              kid = job.jobid;
+              break;
+              break;
+            }
+          }
+        }
+        std::cout << "    that's job " << kid << std::endl;
+
+        // skip this error if there's no job on that node
+        if (kid == -1) continue;
+
+        // or if this job errored out already, skip it
+        bool alreadyfailed = false;
+        for (auto jobid : failedjobids) {
+          if (kid == jobid) {
+            std::cout << "    but that already failed" << std::endl;
+            alreadyfailed = true;
+          }
+        }
+        if (alreadyfailed) continue;
+        else failedjobids.push_back(kid);
+
+        // now look for that jobid in subsequent frames
+        size_t kframe = iframe;
+        for (size_t jframe=iframe+1; jframe<frames.size(); ++jframe) {
+          for (auto job : frames[jframe].jobs) {
+            if (job.jobid == kid) {
+              kframe = jframe;
+              break;	// out of the job loop, not the jframe loop
+            }
+          }
+          // break out of this frame loop if we didn't find it
+          if (kframe != jframe) break;
+        }
+        std::cout << "    and it runs to frame " << kframe << std::endl;
+
+        // once you find the end, march backwards some number of frames
+        size_t deadframes = std::min((size_t)8, kframe-iframe);
+        for (size_t jframe=kframe; jframe>kframe-deadframes; --jframe) {
+
+          // find the job index in this frame
+          size_t kjob = 0;
+          for (size_t ijob=0; ijob<frames[jframe].jobs.size(); ++ijob) {
+            if (frames[jframe].jobs[ijob].jobid == kid) {
+              kjob = ijob;
+              break;
+            }
+          }
+
+          // make a new job to get these nodes
+          job_t newjob;
+          newjob.jobid = -1;
+
+          // move nodes out of this job and into a new job called "failed" with jobid=-1
+          std::cout << "    moving " << frames[jframe].jobs[kjob].nodeids.size() << " to a failed job" << std::endl;
+          newjob.nodeids = frames[jframe].jobs[kjob].nodeids;
+          frames[jframe].jobs[kjob].nodeids.clear();
+
+          // and make sure that new job is added
+          frames[jframe].jobs.emplace_back(newjob);
+        }
+
+        // but as you march earlier in time, quickly reduce the number of failed nodes
+        {
+          size_t jframe = kframe-deadframes;
+
+          // find the job index in this frame
+          //size_t kjob = 0;
+          //for (size_t ijob=0; ijob<frames[jframe].jobs.size(); ++ijob) {
+          //  if (frames[jframe].jobs[ijob].jobid == kid) {
+          //    kjob = ijob;
+          //    break;
+          //  }
+          //}
+
+          // make a new job to get the one failed node
+          job_t newjob;
+          newjob.jobid = -1;
+          newjob.nodeids.push_back(knode);
+
+          // don't even bother erasing it from the original job
+
+          // and make sure that new job is added
+          frames[jframe].jobs.emplace_back(newjob);
+        }
+      }
+    }
+  }
+
   // --------------------------------------------------------------------------
   // march through active frames and jobs and draw them
 
@@ -427,6 +553,9 @@ int main(int argc, char *argv[]) {
 
       // check database for this jobid - return its color
       (void) get_next_color(job.jobid, color.data());
+
+      // get black if it's a failed job
+      if (job.jobid == -1) get_failed_color(color.data());
 
       // or always generate a new one
       //(void) get_next_color(color);

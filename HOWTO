@@ -1,0 +1,8 @@
+cat frame_00[123]*png | ffmpeg -f image2pipe -framerate 30 -i - -vcodec libx265 -crf 18 -r 30 -pix_fmt yuv420p -f mp4 capacity_test3.mp4
+
+cat 20230604-0[0-4]*png 20230604-050056.png | ffmpeg -f image2pipe -framerate 30 -i - -vcodec libx265 -crf 18 -r 30 -pix_fmt yuv420p -f mp4 capability_test1.mp4
+
+
+cat 20230602-0[4-8]* 20230602-090017.png | ffmpeg -f image2pipe -framerate 30 -i - -vcodec libx265 -crf 18 -r 30 -pix_fmt yuv420p -f mp4 capability_fail1.mp4
+convert -delay 4 -loop 0 20230602-0[4-8]* 20230602-090017.png capability_fail1.gif
+convert -delay 4 -loop 0 frame_00[123]*png capacity_fail1.gif
