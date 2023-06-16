@@ -7,6 +7,7 @@
 // (c)2023 Mark J Stock <markjstock@gmail.com>
 //
 
+#include "switchboard.h"
 #include "ryb_autocolor.h"
 
 #include "lodepng.h"
@@ -21,25 +22,6 @@
 #include <cassert>
 #include <iterator>
 
-struct job_t {
-  //std::string name;
-  int jobid;
-  std::vector<int> nodeids;
-};
-
-struct frame_t {
-  std::string name;
-  std::vector<job_t> jobs;
-};
-
-//struct machine_t {
-  // the machine name to search for
-  //std::string name;
-  // the node hierarchy
-  // a mapping function from node name to 0-indexed id
-//};
-
-const std::string nextfilekey = "file";		// keyword to look for to start a new file
 
 //
 // data for frontier, exascale machine at ORNL
@@ -213,13 +195,41 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  // --------------------------------------------------------------------------
-  // read the node list file into a single large string (could be >10MB per day)
-  std::ifstream ifs(nodefn);
-  assert (ifs.is_open() && "Could not open given node list file");
-  std::cout << "Reading nodelist..." << std::endl;
-  std::string nodelist(std::istreambuf_iterator<char>{ifs}, {});
-  ifs.close();
+  // draw a default color for every node
+  if (false) {
+    // get a color for this job
+    const unsigned char unused[4] = {231, 231, 231, 255};
+
+    // now march through all participating nodes and color their boxes
+    for (int nodeidx = 0; nodeidx < total_num[0]; nodeidx++) {
+
+      const int group = nodeidx / num_per_level[0];
+      const int igroup = group % num_per_row[1];
+      const int jgroup = group / num_per_row[1];
+      const int node = nodeidx - group*num_per_level[0];
+      const int inode = node % num_per_row[0];
+      const int jnode = node / num_per_row[0];
+
+      // pixel index of top left corner
+      const int bdr = 0;
+      const int col = boxgap[2]/2  +  jgroup*boxhgt[1] + boxgap[1]/2  +  jnode*boxhgt[0] + boxgap[0]/2 + bdr;
+      const int row = boxgap[2]/2  +  igroup*boxwid[1] + boxgap[1]/2  +  inode*boxwid[0] + boxgap[0]/2 + bdr;
+      const int idx = col*out_width + row;
+
+      // and the size of the box to draw
+      const int xwid = boxszx[0] + 2*boxbdr[0];
+      const int yhgt = boxszy[0] + 2*boxbdr[0];
+
+      // draw the block of color
+      for (int y=0; y<yhgt; ++y) {
+        const int py = idx + y*out_width;
+        for (int x=0; x<xwid; ++x) {
+          const int px = py + x;
+          for (int c=0; c<4; ++c) base_image[4*px+c] = unused[c];
+        }
+      }
+    }
+  }
 
   // --------------------------------------------------------------------------
   // repeatedly look for the keyword in the nodelist string and generate jobs
@@ -229,11 +239,17 @@ int main(int argc, char *argv[]) {
   // store all data in a vector of frames
   std::vector<frame_t> frames;
 
+  // read the node list file into a single large string (could be >10MB per day)
+  std::ifstream ifs(nodefn);
+  assert (ifs.is_open() && "Could not open given node list file");
+  std::cout << "Reading nodelist..." << std::endl;
+  std::string nodelist(std::istreambuf_iterator<char>{ifs}, {});
+  ifs.close();
+
   // start a potential new frame
   frame_t newframe;
 
   std::string nextframename = pngfn;
-  //std::string nextjobname = "job";
   int nextjobid = 1;
 
   size_t pos = 0;
@@ -408,8 +424,10 @@ int main(int argc, char *argv[]) {
 
       // get a color for this job
       std::array<unsigned char,4> color;
+
       // check database for this jobid - return its color
       (void) get_next_color(job.jobid, color.data());
+
       // or always generate a new one
       //(void) get_next_color(color);
 
