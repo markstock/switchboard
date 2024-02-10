@@ -26,3 +26,15 @@ Generate the nodelist file with a command like
 
 ## Thanks
 [Lodepng](https://github.com/lvandeve/lodepng), [CLI11](https://github.com/CLIUtils/CLI11), [Oak Ridge National Laboratory](https://www.olcf.ornl.gov/)
+
+## Citing switchboard
+I don't get paid for writing or maintaining this, so if you find this tool useful or mention it in your writing, please please cite it by using the following BibTeX entry.
+
+```
+@Misc{Switchboard2023,
+  author =       {Mark J.~Stock},
+  title =        {Switchboard:  Render a visual representation of the load on a supercomputer},
+  howpublished = {\url{https://github.com/markstock/switchboard}},
+  year =         {2023}
+}
+```
