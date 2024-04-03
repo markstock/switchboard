@@ -1,8 +1,8 @@
 //
 // switchboard
 //
-// Given a node list from slurm, render an image of which nodes were and 
-// were not involved in that operation
+// Given a node list from "squeue -t running", render an image of which jobs were running
+// on which nodes, using well-separated colors from the RYB color space
 //
 // (c)2023 Mark J Stock <markjstock@gmail.com>
 //
@@ -73,7 +73,7 @@ int main(int argc, char *argv[]) {
   std::cout << "switchboard v1.0\n";
 
   // set up command line arg definitions
-  CLI::App app{"Find optimal paths in DEMs with modifier fields"};
+  CLI::App app{"Generate hierarchical block rendering of jobs on a supercomputer"};
   std::string nodefn = "nodelist";
   app.add_option("-n,--nodelist", nodefn, "name of nodelist text file");
   std::string pngfn = "out.png";
